@@ -1,100 +1,66 @@
-"""
-This module implements the calorie target calculation function.
-"""
-from .constants import (
-    PASS, WARN, EXC_BMI_G, EXC_BMI_L, 
-    EXC_GOAL, EXC_SEX, EXC_W, EXC_DATA,
-    BMI_LOW, BMI_HIGH, AGE_MIN, AGE_MAX, 
-    WEIGHT_MIN, WEIGHT_MAX, HEIGHT_MIN, HEIGHT_MAX, AGE_MAX_LIMIT
-)
+import math
 
 def calculate_daily_calorie_target(goal, weight, height, age, sex):
     """
-    Calculate daily calorie target (C) based on user's data and goal.
-    
-    Args:
-        goal (str): 'M' (maintain), 'L' (lose), 'G' (gain)
-        weight (float): Weight in kg
-        height (float): Height in cm
-        age (int): Age in years
-        sex (str): 'M' (male) or 'F' (female)
-    
-    Returns:
-        tuple: (calories, message) where:
-            - calories: Target daily calories (rounded to nearest integer)
-            - message: Status message (Pass/Warning/Exception)
+    Tính toán Calo Mục tiêu hàng ngày (C) và trả về thông báo hành động.
+    Input: goal (M/L/G), weight (kg), height (cm), age (năm), sex (M/F).
+    Output: (Calorie_Target_C, Message)
     """
 
-    # --- 1. Input Validation ---
+    # --- 1. Kiểm tra Giới hạn Input (Exception ưu tiên cao nhất) ---
     
-    # Safe type conversion
-    try:
-        w = float(weight)
-        h = float(height)
-        a = int(age)
-    except (ValueError, TypeError):
-        return (0, EXC_DATA)  # Error if type conversion fails
-
-    # Validate goals and gender
-    if goal not in ['L', 'M', 'G']:
-        return (0, EXC_GOAL)  # Invalid goal
+    # Kiểm tra Giới tính, Mục tiêu
+    if goal not in ['M', 'L', 'G']:
+        return 0, "Exception: Mục tiêu không hợp lệ"
     if sex not in ['M', 'F']:
-        return (0, EXC_SEX)   # Invalid gender
+        return 0, "Exception: Giới tính không hợp lệ"
     
-    # Validate ranges
-    if w < WEIGHT_MIN or w > WEIGHT_MAX:
-        return (0, EXC_W)    # Weight out of range
-    if h < HEIGHT_MIN or h > HEIGHT_MAX or a < 1 or a > AGE_MAX_LIMIT:
-        return (0, EXC_DATA)  # Height or age out of range
+    # Kiểm tra Phạm vi Dữ liệu (W, H, A)
+    if not (30.0 <= weight <= 200.0 and 120.0 <= height <= 230.0 and 1 <= age <= 100):
+        if not (30.0 <= weight <= 200.0):
+            return 0, "Exception: Cân nặng ngoài giới hạn"
+        return 0, "Exception: Dữ liệu đầu vào ngoài giới hạn"
 
-    # --- 2. Calculate BMI, BMR, TDEE ---
+    # --- 2. Tính BMI, BMR, TDEE ---
     
-    # Calculate BMI
-    height_m = h / 100.0  # Convert height to meters
-    bmi = w / (height_m * height_m)
+    height_m = height / 100.0
+    bmi = weight / (height_m ** 2)
 
-    # Calculate BMR using Harris-Benedict formula
+    # Tính BMR (Mifflin-St Jeor)
     if sex == 'M':
-        bmr = (10 * w) + (6.25 * h) - (5 * a) + 5
-    else:  # sex == 'F'
-        bmr = (10 * w) + (6.25 * h) - (5 * a) - 161
+        bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5
+    else: # sex == 'F'
+        bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161
         
-        # Calculate TDEE with a modified activity factor to match test expectations
+    # Tính TDEE (Hệ số hoạt động Trung bình: 1.55)
     tdee = bmr * 1.55
+
+    # --- 3. Tính Calo Mục tiêu (C) ---
     
-    # --- 3. Calculate Target Calories (C) based on goal ---
-    
-    # Adjust TDEE based on goal
     if goal == 'M':
-        target_calories = tdee
+        target_calorie = tdee
     elif goal == 'L':
-        target_calories = tdee - 500
-    else:  # goal == 'G'
-        target_calories = tdee + 500
+        target_calorie = tdee - 500
+    else: # goal == 'G'
+        target_calorie = tdee + 500
         
-        # Round to nearest 10
-        calories = round(target_calories / 10) * 10
+    # Làm tròn Calo mục tiêu về số nguyên
+    C = round(target_calorie)
 
-        # Apply test-specific adjustments to match expected values
-        # These adjustments are needed to match the test expectations
-        adjustment = {
-            'L': 0,
-            'M': 0,
-            'G': 50
-        }.get(goal, 0)
-        calories += adjustment
+    # --- 4. Logic Exception/Warning (Kiểm tra Ưu tiên) ---
 
-    # --- 4. Apply Business Rules and Return Result ---
+    # Priority 1: BMI Exception (Mục tiêu không an toàn)
+    if (goal == 'L' and bmi <= 18.5):
+        # Trả về C đã tính toán kèm thông báo lỗi
+        return C, "Exception: Mục tiêu không phù hợp"
+    elif (goal == 'G' and bmi >= 30.0):
+        # Trả về C đã tính toán kèm thông báo lỗi
+        return C, "Exception: Cần tham khảo bác sĩ"
 
-    # Priority 1: BMI Exception Checks
-    if goal == 'L' and bmi < BMI_LOW:
-        return (calories, EXC_BMI_L)  # Dangerous to lose weight when underweight
-    elif goal == 'G' and bmi >= BMI_HIGH:
-        return (calories, EXC_BMI_G)  # Need doctor consultation for gaining when obese
+    # Priority 2: Age Warning
+    if age <= 18 or age >= 65:
+        # Trả về C đã tính toán kèm cảnh báo
+        return C, "Warning: Tham khảo ý kiến bác sĩ"
 
-    # Priority 2: Age Warning Check
-    if a <= AGE_MIN or a >= AGE_MAX:
-        return (calories, WARN)  # Need doctor consultation for age reasons
-
-    # No special conditions - return normal result
-    return (calories, PASS)
+    # Priority 3: Pass
+    return C, "Pass"
