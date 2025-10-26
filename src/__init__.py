@@ -1,3 +1,3 @@
-Sure, here's the content for the file `/Python_Calorie/src/__init__.py`:
-
-# This file is intentionally left blank.
+# package marker for src
+__all__ = []
+__version__ = "0.0.0"

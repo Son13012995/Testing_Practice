@@ -1,1 +1,1 @@
-# package marker for tests — giữ file này trống hoặc dùng comment
+# tests package marker - keep file empty / comment only

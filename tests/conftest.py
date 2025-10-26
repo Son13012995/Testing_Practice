@@ -1,7 +1,7 @@
-import os
 import sys
+import os
 
-# Thêm project root (thư mục chứa src/) vào đầu sys.path để import 'src' hoạt động
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if ROOT not in sys.path:
-    sys.path.insert(0, ROOT)
+# Thêm thư mục gốc (TESTING_PRACTICE) vào đường dẫn hệ thống
+# để Python có thể tìm thấy thư mục 'src'
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, project_root)
